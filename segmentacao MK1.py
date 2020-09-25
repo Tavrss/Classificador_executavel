@@ -142,6 +142,8 @@ for varnum in range(4):
                                                    primeiraDVar[varnum], segundaDVar[varnum], terceiraDVar[varnum],
                                                    nomes_dos_formatos[varnum])
 
+vetor = pd.concat(dataframe_da_imgem, axis=1)
+
 '''
 o resultado final é um vetor de 4 posições nas quais os valore de cada sistema de cor é salvo.
 '''
