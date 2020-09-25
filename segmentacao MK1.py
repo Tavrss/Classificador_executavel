@@ -1,7 +1,11 @@
+  
 import cv2 as cv
 import numpy as np
 import pandas as pd
-
+# Importando o padronizador:
+from sklearn.preprocessing import StandardScaler
+# Importando o classificador:
+from sklearn.svm import SVC
 
 # função mostrar para quando precisarmos ver a imgem
 def mostrar(imagem):
@@ -12,14 +16,12 @@ def mostrar(imagem):
 
 
 # feita para salvar os dados em formato de um dataframe
-def criando_dataframe(first_name, concentrations, timesvar,
-                      first_channelN, second_channelN, third_channelN,
+def criando_dataframe(first_channelN, second_channelN, third_channelN,
                       first_channelM, second_channelM, third_channelM,
                       first_channelVar, second_channelVar, third_channelVar,
                       formatN):
     dados = pd.DataFrame(
-        {'Image': first_name, 'Concentration': concentrations, 'Time': timesvar,
-         # primeira dimensão
+        {# primeira dimensão
          f'{first_channelN} M': first_channelM,
          f'{first_channelN} Var': first_channelVar,
          # segunda dimensão
@@ -40,6 +42,34 @@ def pega_nome(nome_da_imgem):
     return first_nome, concentration, timevar
 
 
+# Variaveis
+# Vetores que guardarão as informações
+# primeira dimensão
+# média
+primeiraDMean = [[], [], [], []]
+# variância
+primeiraDVar = [[], [], [], []]
+# segunda dimensão
+# média
+segundaDMean = [[], [], [], []]
+# variância
+segundaDVar = [[], [], [], []]
+# terceira simensão
+# média
+terceiraDMean = [[], [], [], []]
+# variância
+terceiraDVar = [[], [], [], []]
+# variaveis para nomenclatura
+primeiroD = ['Luminosity', 'Hue', 'Y', 'Blue']
+segundoD = ['Chromatic Coordinate a', 'Saturation', 'Cr', 'Green']
+terceiroD = ['Chromatic Coordinate b', 'Value', 'Cb', 'Red']
+nomes_dos_formatos = ['Lab', 'HSV', 'YCrCb', 'RGB']
+dataframe_da_imgem = [[], [], [], []]  # dataframe a ser classificado
+kernel = np.ones((13, 13), np.uint8)  # necessário para filtro morfológico
+ordem =['Luminosity M', 'Luminosity Var','Chromatic Coordinate a M', 'Chromatic Coordinate a Var',
+       'Chromatic Coordinate b M', 'Chromatic Coordinate b Var', 'Hue M', 'Hue Var', 'Saturation M',
+       'Saturation Var', 'Value M', 'Value Var', 'Y M', 'Y Var', 'Cr M', 'Cr Var', 'Cb M', 'Cb Var', 'Blue M', 'Blue Var', 'Green M', 'Green Var',
+       'Red M', 'Red Var']
 '''
 ##############################################Segmentação######################################################
 '''
@@ -136,17 +166,42 @@ for formatos in range(4):
         terceiraDVar[formatos].append(np.var(terceiro))
 # salvando dados em um dataframe
 for varnum in range(4):
-    dataframe_da_imgem[varnum] = criando_dataframe(primeiro_nome, concentracao, tempo,
-                                                   primeiroD[varnum], segundoD[varnum], terceiroD[varnum],
+    dataframe_da_imgem[varnum] = criando_dataframe(primeiroD[varnum], segundoD[varnum], terceiroD[varnum],
                                                    primeiraDMean[varnum], segundaDMean[varnum], terceiraDMean[varnum],
                                                    primeiraDVar[varnum], segundaDVar[varnum], terceiraDVar[varnum],
                                                    nomes_dos_formatos[varnum])
-
-vetor = pd.concat(dataframe_da_imgem, axis=1)
+    
+vetor = np.array(pd.concat(dataframe_da_imgem, axis=1))
 
 '''
-o resultado final é um vetor de 4 posições nas quais os valore de cada sistema de cor é salvo.
+Mudei o valor final pra ficar do jeito que as minhas funções pedem, e tirei as info de tempo, concentração 
+e imagem da sua função.
 '''
+'''
+##################################### Classificação ################################################
+'''
+#importando o banco para treino:
+treino = pd.read_csv('Banco 3.csv')
+
+# como o banco tem muita informação vou fazer o corte só das características e das duas classes:
+X_treino = treino[ordem]
+y1_treino = treino['Class 1']
+y2_treino = treino['Class 2']
+#Padronizando:
+scaler=StandardScaler()
+scaler.fit(X_treino)
+X_treino = pd.DataFrame(scaler.transform(X_treino), columns=X_treino.columns)
+# Definindo os dois classificadores com os melhores hiperparâmetros:
+clf1 = SVC(kernel= 'linear',decision_function_shape ='ovo', C = 80.5)
+clf2 = SVC(kernel='linear', decision_function_shape =  'ovo', C=92.0)
+#treinando os classificadores:
+clf1.fit(X_treino,y1_treino)
+clf2.fit(X_treino.loc[y2_treino.dropna().index.tolist()],y2_treino.dropna())
+v = scaler.transform(vetor)
+classe1, classe2 = clf1.predict(v), clf2.predict(v)
+print('Classe verdadeira: '+ str(concentracao))
+print('Classificação 1: '+str(classe1[0]))
+print('Classificação 2: '+str(classe2[0]))
 
 '''
 tentativa de criação de um executavel para classificação automatica de fitas colorimétricas.
